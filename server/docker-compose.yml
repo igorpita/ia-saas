@@ -30,7 +30,7 @@ services:
       - redisdata:/data
 
   evolution-api:
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:v2.1.1
     container_name: omniflow_evolution_api
     restart: always
     ports:
@@ -39,6 +39,7 @@ services:
       - SERVER_URL=http://localhost:8080
       - DOCKER_ENV=true
       - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgres
       - DATABASE_CONNECTION_URI=postgres://saas_user:saas_secure_password_2026@postgres:5432/ia_saas_db
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=mv_evolution_secret_api_key_2026
