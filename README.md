@@ -1,32 +1,51 @@
-# React + TypeScript + Vite
+# ⚡ OmniFlow AI SaaS - Plataforma de Atendimento Multicanal com Agentes de IA
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+OmniFlow AI é uma solução **SaaS Full-Stack Multi-tenant** para atendimento automatizado omnichannel via **WhatsApp**, **Webchat**, **E-mail**, **Telegram**, **Instagram** e **Twilio Voice**, integrando RAG (Pgvector), transbordo humano para grupos especializados (*Service Desk TI*, *Comercial*, *Financeiro*, *N2*), checkout autônomo e suporte BYO-LLM (OpenAI, Anthropic, Gemini, Groq, Ollama).
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🚀 Instalação Rápida em 1 Comando (Linux VPS)
 
-## React Compiler
+Abra o terminal da sua VPS e execute o comando abaixo:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+bash <(curl -sSL https://raw.githubusercontent.com/igorpita/ia-saas/main/install.sh)
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+> **Nota**: Se tiver um domínio próprio configurado (ex: `setup.omniflow.ai`), você pode redirecioná-lo para a URL do `install.sh` acima e utilizar:
+> ```bash
+> bash <(curl -sSL setup.omniflow.ai)
+> ```
+
+---
+
+## 🛠️ O que o Instalador `install.sh` Faz Autonomamente:
+
+1. Instala Docker e Docker Compose na VPS (caso necessário).
+2. Clona o repositório em `/opt/omniflow-saas`.
+3. Gera o arquivo de ambiente `server/.env`.
+4. Inicializa os containers Docker em segundo plano:
+   - `omniflow_postgres` (PostgreSQL 16 com extensão `pgvector`).
+   - `omniflow_redis` (Redis 7 para filas BullMQ).
+   - `omniflow_evolution_api` (Evolution API v2 para WhatsApp).
+   - `omniflow_api_backend` (Backend Fastify Node.js na porta 3001).
+5. Executa as Migrations do Banco de Dados via Prisma.
+6. Exibe a tela de confirmação e credenciais administrativas.
+
+---
+
+## 🔒 Certificado SSL / HTTPS para Domínio Próprio
+
+Para publicar seu SaaS com HTTPS seguro:
+
+```bash
+sudo apt-get install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d app.seudominio.com.br
+```
+
+---
+
+## 🔑 Credenciais Padrão do Superadmin
+
+- **E-mail**: `admin@omniflow.ai`
+- **Senha**: `123456`
