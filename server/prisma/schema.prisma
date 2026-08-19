@@ -1,0 +1,299 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id                    String       @id @default(uuid())
+  name                  String
+  slug                  String       @unique
+  plan                  PlanType     @default(TRIAL)
+  status                TenantStatus @default(ACTIVE)
+  trialDaysLeft         Int          @default(14)
+  builtInTokensUsed     Int          @default(0)
+  monthlyTokenLimit     Int          @default(1000000)
+  customLlmEnabled      Boolean      @default(false)
+  customLlmProvider     String?      // 'builtin' | 'openai' | 'anthropic' | 'gemini' | 'groq'
+  customLlmApiKeyEnc    String?      // AES-256 Encrypted
+  customLlmModel        String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+
+  users                 User[]
+  specializedGroups     SpecializedGroup[]
+  agents                Agent[]
+  knowledgeSources      KnowledgeSource[]
+  campaigns             Campaign[]
+  contacts              Contact[]
+  chatThreads           ChatThread[]
+  channels              ChannelConfig[]
+
+  @@map("tenants")
+}
+
+enum PlanType {
+  STARTER
+  PRO
+  ENTERPRISE
+  TRIAL
+}
+
+enum TenantStatus {
+  ACTIVE
+  TRIAL
+  SUSPENDED
+}
+
+model User {
+  id                String       @id @default(uuid())
+  tenantId          String
+  name              String
+  email             String       @unique
+  passwordHash      String
+  role              UserRole     @default(ATTENDANT)
+  status            UserStatus   @default(OFFLINE)
+  avatarUrl         String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groupAssignments  UserGroupAssignment[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  SUPERADMIN
+  WORKSPACE_ADMIN
+  SUPERVISOR
+  ATTENDANT
+}
+
+enum UserStatus {
+  ONLINE
+  BUSY
+  OFFLINE
+}
+
+model SpecializedGroup {
+  id                String       @id @default(uuid())
+  tenantId          String
+  name              String       // ex: "Service Desk TI"
+  description       String?
+  color             String       @default("#2563eb")
+  createdAt         DateTime     @default(now())
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  groupAssignments  UserGroupAssignment[]
+  threads           ChatThread[]
+
+  @@map("specialized_groups")
+}
+
+model UserGroupAssignment {
+  userId            String
+  groupId           String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group             SpecializedGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+  @@map("user_group_assignments")
+}
+
+model Agent {
+  id                String       @id @default(uuid())
+  tenantId          String
+  name              String
+  type              String       @default("Suporte ao Cliente")
+  language          String       @default("Portuguese (Brazil)")
+  systemPrompt      String       @db.Text
+  temperature       Float        @default(0.3)
+  llmProvider       String       @default("builtin")
+  modelName         String       @default("moveo-v3")
+  status            AgentStatus  @default(DRAFT)
+  knowledgeConnected Boolean     @default(true)
+  lastTrainedAt     DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  flowNodes         FlowNode[]
+  campaigns         Campaign[]
+
+  @@map("agents")
+}
+
+enum AgentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model FlowNode {
+  id                String       @id @default(uuid())
+  agentId           String
+  type              String       // 'intent' | 'text' | 'ai_response' | 'question' | 'condition' | 'transfer' | 'mcp_tool'
+  title             String
+  content           String       @db.Text
+  configJson        Json?
+  nextNodes         String[]
+  agent             Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("flow_nodes")
+}
+
+model KnowledgeSource {
+  id                String       @id @default(uuid())
+  tenantId          String
+  title             String
+  category          KBCategory   @default(WEBPAGE)
+  status            KBStatus     @default(ACTIVE)
+  creatorName       String       @default("Admin")
+  detailInfo        String?
+  urlsCount         Int          @default(0)
+  rawContent        String?      @db.Text
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  chunks            KnowledgeChunk[]
+
+  @@map("knowledge_sources")
+}
+
+enum KBCategory {
+  FAQ
+  DOCUMENT
+  WEBPAGE
+  EXTERNAL_MCP
+}
+
+enum KBStatus {
+  ACTIVE
+  INDEXING
+  FAILED
+}
+
+model KnowledgeChunk {
+  id                String       @id @default(uuid())
+  sourceId          String
+  content           String       @db.Text
+  metadataJson      Json?
+  source            KnowledgeSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@map("knowledge_chunks")
+}
+
+model Contact {
+  id                String       @id @default(uuid())
+  tenantId          String
+  name              String
+  phone             String?
+  email             String?
+  channel           String       @default("WhatsApp")
+  tags              String[]
+  lastInteraction   DateTime     @default(now())
+  createdAt         DateTime     @default(now())
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("contacts")
+}
+
+model ChatThread {
+  id                String       @id @default(uuid())
+  tenantId          String
+  contactName       String
+  contactChannel    String       // 'whatsapp' | 'webchat' | 'email' | 'telegram' | 'instagram' | 'twilio_voice'
+  customerPhone     String?
+  customerEmail     String?
+  lastMessage       String       @db.Text
+  lastMessageTime   DateTime     @default(now())
+  unreadCount       Int          @default(0)
+  status            ThreadStatus @default(INBOX)
+  assignedGroupId   String?
+  assignedUserId    String?
+  tags              String[]
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedGroup     SpecializedGroup? @relation(fields: [assignedGroupId], references: [id])
+  messages          ChatMessage[]
+
+  @@map("chat_threads")
+}
+
+enum ThreadStatus {
+  INBOX
+  UNASSIGNED
+  SPAM
+  TRASH
+  RESOLVED
+}
+
+model ChatMessage {
+  id                String       @id @default(uuid())
+  threadId          String
+  senderType        String       // 'USER' | 'AGENT' | 'HUMAN_AGENT' | 'SYSTEM'
+  senderName        String
+  text              String       @db.Text
+  isAiGenerated     Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+
+  thread            ChatThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model Campaign {
+  id                String       @id @default(uuid())
+  tenantId          String
+  agentId           String
+  name              String
+  type              CampaignType @default(OUTREACH)
+  status            CampaignStatus @default(ACTIVE)
+  channel           String       @default("WhatsApp")
+  targetCount       Int          @default(0)
+  deliveredCount    Int          @default(0)
+  aiEngagementRate  Float        @default(0.0)
+  createdAt         DateTime     @default(now())
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent             Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("campaigns")
+}
+
+enum CampaignType {
+  OUTREACH
+  PAYMENT_RECOVERY
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  DRAFT
+  COMPLETED
+}
+
+model ChannelConfig {
+  id                String       @id @default(uuid())
+  tenantId          String
+  name              String
+  type              String       // 'webchat' | 'whatsapp' | 'email' | 'telegram' | 'instagram' | 'twilio_voice' | 'webhook'
+  status            ChannelStatus @default(ACTIVE)
+  credentialsJson   Json?
+  lastActivity      DateTime     @default(now())
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("channel_configs")
+}
+
+enum ChannelStatus {
+  ACTIVE
+  MISSING_CREDENTIALS
+  DISABLED
+}
